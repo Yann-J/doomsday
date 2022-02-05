@@ -41,7 +41,6 @@
     const CENTURY_CODE = [2, 0, 5, 3];
     // The doomsday of every month (Jan = 0)
     const DOOMSDAYS = [3, 28, 14, 4, 9, 6, 11, 8, 5, 10, 7, 12];
-    const DOOMSDAYS_LEAP = [4, 29, 14, 4, 9, 6, 11, 8, 5, 10, 7, 12];
     const RESULT_LABELS = [
       { name: 'Century Code [C]', value: 'century_code' },
       { name: 'Dozens in Century [D = yy / 12]', value: 'dozens' },
@@ -124,7 +123,7 @@
       const leaps = Math.floor(year_in_century % 12 / 4);
       const doomsday_code = (century_code + dozens + remainder + leaps) % 7;
       const is_leap = isLeapYear(y);
-      const doomsday_selected_month = is_leap ? DOOMSDAYS_LEAP[m] : DOOMSDAYS[m];
+      const doomsday_selected_month = DOOMSDAYS[m] + (is_leap && m <= 1 ? 1 : 0);
       const doomsday_offset = (d - doomsday_selected_month) % 7;  // can be negative!
       const day_code = mod(doomsday_offset + doomsday_code, 7);
 
