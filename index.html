@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+
+<head>
+  <title>Conway's Doomsday Algorithm</title>
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"
+    integrity="sha384-JcKb8q3iqJ61gNV9KGb8thSsNjpSL0n8PARn9HuZOnIxN0hoP+VmmDGMN5t9UJ0Z" crossorigin="anonymous">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+  <div class="container">
+    <h1>John Conway's Doomsday Algorithm</h1>
+    <p>See <a href="https://en.wikipedia.org/wiki/Doomsday_rule" target="_blank" rel="noopener noreferrer">Wikipedia</a>
+      to learn about this method to mentally
+      compute the weekday of any date.</p>
+    <form class="m-2">
+      <div class="form-row align-items-center">
+        <input type="text" id="date" data-format="DD-MM-YYYY" data-template="D MMM YYYY" />
+        <span>&nbsp;</span>
+        <button type="button" id="today" class="btn btn-sm btn-secondary" title="Today">Today</button>
+      </div>
+    </form>
+
+    <div class="row" id="results"></div>
+
+    <iframe width="560" height="315" src="https://www.youtube.com/embed/714LTMNJy5M" title="YouTube video player"
+      frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+      allowfullscreen></iframe>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"
+    integrity="sha512-894YE6QWD5I59HgZOGReFYm4dnWc1Qt5NtvYSaNcOP+u1T9qYdvdihz0PPSiiqn/+/3e7Jo4EaG7TubfWGUrMQ=="
+    crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.8.4/moment.js"></script>
+  <script src="https://vitalets.github.io/combodate/combodate.js"></script>
+  <script>
+    // constants
+    const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    // The century code, mod4
+    const CENTURY_CODE = [2, 0, 5, 3];
+    // The doomsday of every month (Jan = 0)
+    const DOOMSDAYS = [3, 28, 14, 4, 9, 6, 11, 8, 5, 10, 7, 12];
+    const DOOMSDAYS_LEAP = [4, 29, 14, 4, 9, 6, 11, 8, 5, 10, 7, 12];
+    const RESULT_LABELS = [
+      { name: 'Century Code [C]', value: 'century_code' },
+      { name: 'Dozens in Century [D = yy / 12]', value: 'dozens' },
+      { name: 'Remainder [R = yy % 12]', value: 'remainder' },
+      { name: 'Leap Years in current dozen [L = R / 4]', value: 'leaps' },
+      { name: 'Doomsday on that year [C + D + R + L]', value: 'doomsday_name' },
+      { name: 'Is leap year?', value: 'is_leap' },
+      { name: 'Doomsday for that month', value: 'doomsday_selected_month' },
+      { name: 'Offset from Doomsday on that month', value: 'doomsday_offset' },
+      { name: 'Weekday', value: 'day_name' },
+    ];
+
+    // Helpers
+    function mod(a, n) {
+      // See https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Remainder
+      return ((a % n) + n) % n;
+    }
+
+    function isLeapYear(year) {
+      //three conditions to find out the leap year
+      if ((0 == year % 4) && (0 != year % 100) || (0 == year % 400)) {
+        return true;
+      }
+      return false;
+    }
+
+    // init date picker
+    $(function () {
+      $('#date').combodate({
+        value: new Date(),
+        minYear: 0,
+        maxYear: moment().year() + 100,
+        errorClass: 'invalid',
+        customClass: '',
+        smartDays: true,
+      });
+      $('#today').click(function () {
+        $('#date').combodate('setValue', new Date());
+      });
+
+      function compute() {
+        // Get selected date
+        const date = $('#date').combodate('getValue', null);
+
+        // Compute Weekday
+        const weekday = computeWeekday(date);
+
+        // Refresh display
+        const container = $('#results');
+        container.html('');
+        RESULT_LABELS.forEach(label => {
+          container.append(`
+          <div class="col-md-6">
+            <h2>${label.name}</h2>
+          </div>
+          <div class="col-md-6">
+            <h2 class="results">${weekday[label.value]}</h2>
+          </div>`);
+        });
+      }
+
+      // Run on first load
+      compute();
+      // Run on selections
+      $('#date').change(compute);
+    });
+
+    // compute day
+    function computeWeekday(date) {
+      const d = date.date(); //1-31
+      const m = date.month(); //0-11
+      const y = date.year();
+
+      const year_in_century = y % 100;
+      const century = Math.floor(y / 100);
+
+      const century_code = CENTURY_CODE[century % 4];
+      const dozens = Math.floor(year_in_century / 12);
+      const remainder = year_in_century % 12;
+      const leaps = Math.floor(year_in_century % 12 / 4);
+      const doomsday_code = (century_code + dozens + remainder + leaps) % 7;
+      const is_leap = isLeapYear(y);
+      const doomsday_selected_month = is_leap ? DOOMSDAYS_LEAP[m] : DOOMSDAYS[m];
+      const doomsday_offset = (d - doomsday_selected_month) % 7;  // can be negative!
+      const day_code = mod(doomsday_offset + doomsday_code, 7);
+
+      return {
+        century_code,
+        dozens,
+        remainder,
+        leaps,
+        doomsday_code,
+        doomsday_name: WEEKDAYS[doomsday_code],
+        is_leap,
+        doomsday_selected_month,
+        doomsday_offset,
+        day_code,
+        day_name: WEEKDAYS[day_code],
+      };
+    }
+  </script>
+</body>
