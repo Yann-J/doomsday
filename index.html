@@ -42,15 +42,17 @@
     // The doomsday of every month (Jan = 0)
     const DOOMSDAYS = [3, 28, 14, 4, 9, 6, 11, 8, 5, 10, 7, 12];
     const RESULT_LABELS = [
-      { name: 'Century Code [C]', value: 'century_code' },
-      { name: 'Dozens in Century [D = yy / 12]', value: 'dozens' },
-      { name: 'Remainder [R = yy % 12]', value: 'remainder' },
-      { name: 'Leap Years in current dozen [L = R / 4]', value: 'leaps' },
-      { name: 'Doomsday on that year [C + D + R + L]', value: 'doomsday_name' },
-      { name: 'Is leap year?', value: 'is_leap' },
-      { name: 'Doomsday for that month', value: 'doomsday_selected_month' },
-      { name: 'Offset from Doomsday on that month', value: 'doomsday_offset' },
-      { name: 'Weekday', value: 'day_name' },
+      { name: 'Century', format: result => result.century },
+      { name: 'Century Offset [C]', format: result => result.century_code },
+      { name: 'Year in Century [yy]', format: result => result.year_in_century },
+      { name: 'Dozens in Century [D = yy / 12]', format: result => result.dozens },
+      { name: 'Years in current dozen [R = yy % 12]', format: result => result.remainder },
+      { name: 'Leap Years in current dozen [L = R / 4]', format: result => result.leaps },
+      { name: 'Doomsday on that year [C + D + R + L]', format: result => `${WEEKDAYS[result.doomsday_code]} (${result.doomsday_code})` },
+      { name: 'Is leap year?', format: result => result.is_leap },
+      { name: 'Doomsday for that month', format: result => `${result.y}-${result.m + 1}-${result.doomsday_selected_month}` },
+      { name: 'Offset from Doomsday on that month', format: result => result.doomsday_offset },
+      { name: 'Weekday', format: result => `${WEEKDAYS[result.day_code]} (${result.day_code})` },
     ];
 
     // Helpers
@@ -69,9 +71,13 @@
 
     // init date picker
     $(function () {
+      selectedDate = new Date();
+      if (location.hash) {
+        selectedDate = moment(location.hash.substr(1)) || selectedDate;
+      }
       $('#date').combodate({
-        value: new Date(),
-        minYear: 0,
+        value: selectedDate,
+        minYear: -1000,
         maxYear: moment().year() + 100,
         errorClass: 'invalid',
         customClass: '',
@@ -85,8 +91,11 @@
         // Get selected date
         const date = $('#date').combodate('getValue', null);
 
+        // Update URL
+        location.hash = date.format('YYYY-MM-DD');
+
         // Compute Weekday
-        const weekday = computeWeekday(date);
+        const result = computeWeekday(date);
 
         // Refresh display
         const container = $('#results');
@@ -97,7 +106,7 @@
             <h2>${label.name}</h2>
           </div>
           <div class="col-md-6">
-            <h2 class="results">${weekday[label.value]}</h2>
+            <h2 class="results">${result && result.century ? label.format(result) : 'N/A'}</h2>
           </div>`);
         });
       }
@@ -110,14 +119,17 @@
 
     // compute day
     function computeWeekday(date) {
+      if (!(date && date.date)) {
+        return {};
+      }
       const d = date.date(); //1-31
       const m = date.month(); //0-11
       const y = date.year();
 
-      const year_in_century = y % 100;
+      const year_in_century = mod(y, 100);
       const century = Math.floor(y / 100);
 
-      const century_code = CENTURY_CODE[century % 4];
+      const century_code = CENTURY_CODE[mod(century, 4)];
       const dozens = Math.floor(year_in_century / 12);
       const remainder = year_in_century % 12;
       const leaps = Math.floor(year_in_century % 12 / 4);
@@ -128,17 +140,20 @@
       const day_code = mod(doomsday_offset + doomsday_code, 7);
 
       return {
+        d,
+        m,
+        y,
+        century,
+        year_in_century,
         century_code,
         dozens,
         remainder,
         leaps,
         doomsday_code,
-        doomsday_name: WEEKDAYS[doomsday_code],
         is_leap,
         doomsday_selected_month,
         doomsday_offset,
         day_code,
-        day_name: WEEKDAYS[day_code],
       };
     }
   </script>
