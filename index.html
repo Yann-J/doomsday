@@ -6,6 +6,7 @@
   <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"
     integrity="sha384-JcKb8q3iqJ61gNV9KGb8thSsNjpSL0n8PARn9HuZOnIxN0hoP+VmmDGMN5t9UJ0Z" crossorigin="anonymous">
   <link rel="stylesheet" href="css/style.css">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
 </head>
 
 <body>
@@ -18,7 +19,10 @@
       <div class="form-row align-items-center">
         <input type="text" id="date" data-format="DD-MM-YYYY" data-template="D MMM YYYY" />
         <span>&nbsp;</span>
-        <button type="button" id="today" class="btn btn-sm btn-secondary" title="Today">Today</button>
+        <div class="btn-group" role="group">
+          <button type="button" id="today" class="btn btn-sm btn-warning" title="Today">Today</button>
+          <button type="button" id="random" class="btn btn-sm btn-warning" title="Random">Random</button>
+        </div>
       </div>
     </form>
 
@@ -41,6 +45,8 @@
     const CENTURY_CODE = [2, 0, 5, 3];
     // The doomsday of every month (Jan = 0)
     const DOOMSDAYS = [3, 28, 14, 4, 9, 6, 11, 8, 5, 10, 7, 12];
+    const START_DATE = new Date(-1000, 0, 1);
+    const END_DATE = moment().add(100, 'year').toDate();
     const RESULT_LABELS = [
       { name: 'Century', format: result => result.century },
       { name: 'Century Offset [C]', format: result => result.century_code },
@@ -48,7 +54,7 @@
       { name: 'Dozens in Century [D = yy / 12]', format: result => result.dozens },
       { name: 'Years in current dozen [R = yy % 12]', format: result => result.remainder },
       { name: 'Leap Years in current dozen [L = R / 4]', format: result => result.leaps },
-      { name: 'Doomsday on that year [C + D + R + L]', format: result => `${WEEKDAYS[result.doomsday_code]} (${result.doomsday_code})` },
+      { name: 'Doomsday on that year [C + D + R + L % 7]', format: result => `${WEEKDAYS[result.doomsday_code]} (${result.doomsday_code})` },
       { name: 'Is leap year?', format: result => result.is_leap },
       { name: 'Doomsday for that month', format: result => `${result.y}-${result.m + 1}-${result.doomsday_selected_month}` },
       { name: 'Offset from Doomsday on that month', format: result => result.doomsday_offset },
@@ -77,14 +83,17 @@
       }
       $('#date').combodate({
         value: selectedDate,
-        minYear: -1000,
-        maxYear: moment().year() + 100,
+        minYear: START_DATE.getFullYear(),
+        maxYear: END_DATE.getFullYear(),
         errorClass: 'invalid',
         customClass: '',
         smartDays: true,
       });
       $('#today').click(function () {
         $('#date').combodate('setValue', new Date());
+      });
+      $('#random').click(function () {
+        $('#date').combodate('setValue', new Date(START_DATE.getTime() + Math.random() * (END_DATE.getTime() - START_DATE.getTime())));
       });
 
       function compute() {
@@ -103,10 +112,10 @@
         RESULT_LABELS.forEach(label => {
           container.append(`
           <div class="col-md-6">
-            <h2>${label.name}</h2>
+            <h3>${label.name}</h3>
           </div>
           <div class="col-md-6">
-            <h2 class="results">${result && result.century ? label.format(result) : 'N/A'}</h2>
+            <h3 class="results">${result && result.d ? label.format(result) : 'N/A'}</h3>
           </div>`);
         });
       }
@@ -118,13 +127,13 @@
     });
 
     // compute day
-    function computeWeekday(date) {
-      if (!(date && date.date)) {
+    function computeWeekday(mydate) {
+      if (!(mydate && mydate.isValid && mydate.isValid())) {
         return {};
       }
-      const d = date.date(); //1-31
-      const m = date.month(); //0-11
-      const y = date.year();
+      const d = mydate.date(); //1-31
+      const m = mydate.month(); //0-11
+      const y = mydate.year();
 
       const year_in_century = mod(y, 100);
       const century = Math.floor(y / 100);
